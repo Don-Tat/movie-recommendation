@@ -1,31 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React from 'react';
+import Home from './components/Home'
+import Signup from './components/Signup';
+import Login from './components/Login';
+import Profile from './components/Profile';
+import Watchlist from './components/Watchlist';
+import Recommendations from './components/Recommendations';
+import MovieList from './components/MovieList';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+// Other imports
 
 function App() {
-    const [movies, setMovies] = useState([]);
-
-    useEffect(() => {
-        axios.get('http://127.0.0.1:5000/api/movies')
-            .then(response => {
-                setMovies(response.data);
-            })
-            .catch(error => {
-                console.error('There was an error fetching the movies!', error);
-            });
-    }, []);
-
-    return (
-        <div>
-            <h1>Movie Recommendations</h1>
-            <ul>
-                {movies.map(movie => (
-                    <li key={movie.id}>
-                        {movie.title} ({movie.release_date ? movie.release_date.split('-')[0] : 'N/A'})
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
+  return (
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/watchlist" element={<Watchlist />} />
+          <Route path="/recommendations" element={<Recommendations />} />
+          <Route path="/movie-list" element={<MovieList />} />
+        </Routes>
+      </div>
+    </Router>
+  );
 }
 
 export default App;
