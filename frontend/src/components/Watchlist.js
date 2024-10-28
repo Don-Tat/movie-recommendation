@@ -1,30 +1,53 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
-function Watchlist() {
+const Watchlist = () => {
   const [watchlist, setWatchlist] = useState([]);
 
   useEffect(() => {
-    // Fetch user's watchlist from backend
-    const fetchWatchlist = async () => {
-      const response = await axios.get(`/user-watchlist?user_id=1`);
-      setWatchlist(response.data);
-    };
-    fetchWatchlist();
+    axios.get('http://127.0.0.1:5000/watchlist')
+      .then(response => setWatchlist(response.data))
+      .catch(error => console.error('Error fetching watchlist:', error));
   }, []);
+
+  const removeFromWatchlist = (movieId) => {
+    axios.delete('http://127.0.0.1:5000/watchlist/remove', { data: { movie_id: movieId } })
+      .then(response => {
+        alert(response.data.message);
+        setWatchlist(watchlist.filter(movie => movie.id !== movieId));
+      })
+      .catch(error => console.error('Error removing from watchlist:', error));
+  };
 
   return (
     <div>
-      <h2>Your Watchlist</h2>
-      <ul>
-        {watchlist.map((movie) => (
-          <li key={movie.id}>
-            {movie.title} - {movie.watched ? 'Watched' : 'To Watch'}
-          </li>
-        ))}
-      </ul>
+      <h1>Watchlist</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Overview</th>
+            <th>Release Date</th>
+            <th>Keywords</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {watchlist.map((movie) => (
+            <tr key={movie.id}>
+              <td>{movie.title}</td>
+              <td>{movie.overview}</td>
+              <td>{movie.release_date}</td>
+              <td>{movie.keywords}</td>
+              <td>
+                <button onClick={() => removeFromWatchlist(movie.id)}>Remove</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
-}
+};
 
 export default Watchlist;
