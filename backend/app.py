@@ -1,6 +1,5 @@
-from flask import Flask, jsonify
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-import requests
 from flask_cors import CORS  # Import the CORS package
 
 
@@ -38,7 +37,7 @@ TMDB_API_URL = 'https://api.themoviedb.org/3/movie/'
 # Function to fetch keywords for a movie
 def fetch_keywords(movie_id):
     keywords_url = f'{TMDB_API_URL}{movie_id}/keywords?api_key={TMDB_API_KEY}'
-    keywords_response = requests.get(keywords_url)
+    keywords_response = request.get(keywords_url)
     if keywords_response.status_code == 200:
         keywords_data = keywords_response.json()['keywords']
         return ', '.join([keyword['name'] for keyword in keywords_data])
@@ -53,7 +52,7 @@ def add_movies():
 
     while page <= total_pages:
         popular_movies_url = f'{TMDB_API_URL}popular?api_key={TMDB_API_KEY}&page={page}'
-        response = requests.get(popular_movies_url)
+        response = request.get(popular_movies_url)
 
         if response.status_code == 200:
             movies_data = response.json()['results']
@@ -83,13 +82,14 @@ def add_movies():
 @app.route('/movies', methods=['GET'])
 def get_movies():
     movies = Movie.query.all()
-    movies_list = [{"title": movie.title, "overview": movie.overview, "release_date": movie.release_date, "keywords": movie.keywords} for movie in movies]
+    movies_list = [{"id": movie.id,"title": movie.title, "overview": movie.overview, "release_date": movie.release_date, "keywords": movie.keywords} for movie in movies]
     return jsonify(movies_list)
 
 # Route to add a movie to the watchlist
 @app.route('/watchlist/add', methods=['POST'])
 def add_to_watchlist():
-    movie_id = requests.json.get('movie_id')
+    data = request.get_json()
+    movie_id = data.get('movie_id')
     if not movie_id:
         return jsonify({"error": "Movie ID is required"}), 400
 
@@ -107,7 +107,7 @@ def add_to_watchlist():
 # Route to remove a movie from the watchlist
 @app.route('/watchlist/remove', methods=['DELETE'])
 def remove_from_watchlist():
-    movie_id = requests.json.get('movie_id')
+    movie_id = request.json.get('movie_id')
     if not movie_id:
         return jsonify({"error": "Movie ID is required"}), 400
 
@@ -136,5 +136,13 @@ def get_watchlist():
             })
     return jsonify(watchlist_movies)
 
+@app.route('/check_movie_ids', methods=['GET'])
+def check_movie_ids():
+    movies = Movie.query.all()
+    movie_list = [{"id": movie.id, "title": movie.title} for movie in movies]
+    for movie in movie_list:
+        print(f"Movie ID: {movie['id']}, Title: {movie['title']}")
+    return jsonify(movie_list)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)

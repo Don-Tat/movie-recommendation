@@ -11,12 +11,19 @@ const Watchlist = () => {
   }, []);
 
   const removeFromWatchlist = (movieId) => {
-    axios.delete('http://127.0.0.1:5000/watchlist/remove', { data: { movie_id: movieId } })
-      .then(response => {
-        alert(response.data.message);
-        setWatchlist(watchlist.filter(movie => movie.id !== movieId));
-      })
-      .catch(error => console.error('Error removing from watchlist:', error));
+    axios.delete(
+      'http://127.0.0.1:5000/watchlist/remove',
+      { data: { movie_id: movieId } },
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+    .then(response => {
+      alert(response.data.message);
+      setWatchlist(watchlist.filter(movie => movie.id !== movieId));
+    })
+    .catch(error => {
+      console.error('Error removing from watchlist:', error);
+      alert('Failed to remove movie from watchlist.');
+    });
   };
 
   return (
