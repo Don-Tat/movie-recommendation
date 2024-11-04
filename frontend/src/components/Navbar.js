@@ -1,38 +1,51 @@
-import React, { useState } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
+// Navbar.js
+import React, { useState } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const Navbar = ({ setCurrentPage, setSearchTerm }) => {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
   const handleSearch = (event) => {
     event.preventDefault();
     if (isSearching) {
-      // Clear search: reset search term and toggle search bar visibility
-      setSearch('');
-      setSearchTerm('');
-      setIsSearching(false); // Show the search bar again
+      setSearch("");
+      setSearchTerm("");
+      setIsSearching(false);
     } else {
-      // Perform search: hide search bar and toggle to "Clear Search"
       setSearchTerm(search);
-      setIsSearching(true); // Hide the search bar
+      setIsSearching(true);
     }
   };
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
       <div className="container-fluid">
-        {/* Make MovieApp clickable to navigate to the home page */}
-        <a className="navbar-brand" href="#" onClick={() => setCurrentPage('home')}>
+        <a
+          className="navbar-brand"
+          href="#"
+          onClick={() => setCurrentPage("home")}
+        >
           MovieApp
         </a>
         <div className="navbar-nav">
-          {/* Removed the Home button */}
-          <button className="nav-link btn btn-dark" onClick={() => setCurrentPage('movies')}>
+          <button
+            className="nav-link btn btn-dark"
+            onClick={() => setCurrentPage("movies")}
+          >
             Movie List
           </button>
-          <button className="nav-link btn btn-dark" onClick={() => setCurrentPage('watchlist')}>
+          <button
+            className="nav-link btn btn-dark"
+            onClick={() => setCurrentPage("watchlist")}
+          >
             Watchlist
+          </button>
+          <button
+            className="nav-link btn btn-dark"
+            onClick={() => setCurrentPage("recommendations")}
+          >
+            Recommendations
           </button>
         </div>
         <div className="d-flex ms-auto">

@@ -69,7 +69,7 @@ const Home = () => {
       <p className="lead">Explore the latest movies and manage your watchlist!</p>
 
       <button className="btn btn-primary mt-4" onClick={fetchMoreMovies} disabled={loading}>
-        {loading ? "Fetching Movies..." : "Fetch More Movies"}
+        {loading ? "Fetching Movies..." : "Fetch Top Movies"}
       </button>
 
       <button className="btn btn-secondary mt-4" onClick={() => setShowForm(!showForm)}>

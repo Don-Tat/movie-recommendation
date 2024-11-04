@@ -1,9 +1,11 @@
+// App.js
 import React, { useState } from "react";
 import Home from "./components/Home";
 import MovieList from "./components/MovieList";
 import Watchlist from "./components/Watchlist";
+import Recommendations from "./components/Recommendations"; // Import Recommendations component
 import Navbar from "./components/Navbar";
-import 'bootstrap/dist/css/bootstrap.min.css';  // Import Bootstrap CSS
+import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
 const App = () => {
@@ -18,6 +20,8 @@ const App = () => {
         return <MovieList searchTerm={searchTerm} />;
       case "watchlist":
         return <Watchlist searchTerm={searchTerm} />;
+      case "recommendations":
+        return <Recommendations />; // Render Recommendations page
       default:
         return <Home />;
     }

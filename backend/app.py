@@ -1,13 +1,15 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-import requests  # Corrected import statement
-from flask_cors import CORS  # Import the CORS package
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import os
+import requests
 
 app = Flask(__name__, static_folder='static')
 
-#Enable CORS
+# Enable CORS
 CORS(app)
 
 # Configure SQLite database
@@ -28,7 +30,6 @@ class Watchlist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     movie_id = db.Column(db.Integer, db.ForeignKey('movie.id'), nullable=False)
 
-
 # Initialize the database
 with app.app_context():
     db.create_all()
@@ -36,13 +37,57 @@ with app.app_context():
 # TMDB API Config
 TMDB_API_KEY = '2d3766aac57697c71fddb3012862f6e3'
 TMDB_API_URL = 'https://api.themoviedb.org/3/movie/'
-
 UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Create the uploads folder if it doesn't exist
+# Ensure uploads folder exists
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# Function to get recommendations
+@app.route('/recommendations', methods=['GET'])
+def get_recommendations_from_watchlist():
+    # Get all movies in the watchlist
+    watchlist_items = Watchlist.query.all()
+    watchlist_movie_ids = [item.movie_id for item in watchlist_items]
+
+    # Fetch watchlist movies and all movies from the database
+    watchlist_movies = Movie.query.filter(Movie.id.in_(watchlist_movie_ids)).all()
+    all_movies = Movie.query.all()
+
+    # Prepare text for each movie's overview and keywords
+    watchlist_text = [" ".join([movie.overview, movie.keywords]) for movie in watchlist_movies]
+    all_movies_text = [" ".join([movie.overview, movie.keywords]) for movie in all_movies]
+
+    # Initialize TF-IDF Vectorizer and calculate similarities
+    tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = tfidf_vectorizer.fit_transform(all_movies_text)
+    watchlist_matrix = tfidf_vectorizer.transform(watchlist_text)
+
+    # Calculate similarity scores
+    similarity_scores = cosine_similarity(watchlist_matrix, tfidf_matrix)
+    top_recommendations = []
+
+    # Gather top recommendations for each movie in the watchlist
+    for scores in similarity_scores:
+        recommended_indices = scores.argsort()[-6:-1][::-1]  # Exclude highest similarity (itself) and take top 5
+        top_recommendations.extend([all_movies[i] for i in recommended_indices if all_movies[i].id not in watchlist_movie_ids])
+
+    # Remove duplicates and limit to top 5 recommendations
+    unique_recommendations = {movie.id: movie for movie in top_recommendations}.values()
+    recommendations = [
+        {
+            "id": movie.id,
+            "title": movie.title,
+            "overview": movie.overview,
+            "release_date": movie.release_date,
+            "keywords": movie.keywords,
+            "poster_url": movie.poster_url
+        }
+        for movie in unique_recommendations
+    ][:5]
+
+    return jsonify(recommendations)
 
 # Add this new route for custom movie creation
 @app.route('/add_custom_movie', methods=['POST'])
@@ -56,7 +101,7 @@ def add_custom_movie():
     if poster:
         filename = secure_filename(poster.filename)
         poster.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        poster_url = f"http://127.0.0.1:5000/static/uploads/{filename}"
+        poster_url = f"{request.host_url}static/uploads/{filename}"
     else:
         poster_url = None
 
@@ -156,7 +201,7 @@ def get_movies():
     movies_list = [{"id": movie.id, "title": movie.title, "overview": movie.overview, "release_date": movie.release_date, "keywords": movie.keywords, "poster_url": movie.poster_url} for movie in movies]
     return jsonify(movies_list)
 
-# Route to add a movie to the watchlist
+# Add to Watchlist route with updated recommendations
 @app.route('/watchlist/add', methods=['POST'])
 def add_to_watchlist():
     data = request.get_json()
@@ -167,13 +212,18 @@ def add_to_watchlist():
     # Check if the movie is already in the watchlist
     existing_entry = Watchlist.query.filter_by(movie_id=movie_id).first()
     if existing_entry:
-        return jsonify({"message": "Movie already in watchlist"}), 200
+        # Return updated recommendations without adding a duplicate
+        updated_recommendations = get_recommendations_from_watchlist().json
+        return jsonify({"message": "Movie already in watchlist", "recommendations": updated_recommendations}), 200
 
+    # Add movie to watchlist
     new_watchlist_item = Watchlist(movie_id=movie_id)
     db.session.add(new_watchlist_item)
     db.session.commit()
 
-    return jsonify({"message": "Movie added to watchlist"}), 201
+    # Get updated recommendations after adding the movie
+    updated_recommendations = get_recommendations_from_watchlist().json
+    return jsonify({"message": "Movie added to watchlist", "recommendations": updated_recommendations}), 201
 
 # Route to remove a movie from the watchlist
 @app.route('/watchlist/remove', methods=['DELETE'])
