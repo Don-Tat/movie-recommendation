@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+import requests  # Corrected import statement
 from flask_cors import CORS  # Import the CORS package
+from werkzeug.utils import secure_filename
+import os
 
-
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 #Enable CORS
 CORS(app)
@@ -19,6 +21,7 @@ class Movie(db.Model):
     overview = db.Column(db.String(500), nullable=False)
     release_date = db.Column(db.String(20), nullable=False)
     keywords = db.Column(db.String(500), nullable=False)  # Store keywords as a comma-separated string
+    poster_url = db.Column(db.String(255), nullable=True)  # New field to store poster URL
 
 # Define the Watchlist table
 class Watchlist(db.Model):
@@ -34,10 +37,75 @@ with app.app_context():
 TMDB_API_KEY = '2d3766aac57697c71fddb3012862f6e3'
 TMDB_API_URL = 'https://api.themoviedb.org/3/movie/'
 
+UPLOAD_FOLDER = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Create the uploads folder if it doesn't exist
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# Add this new route for custom movie creation
+@app.route('/add_custom_movie', methods=['POST'])
+def add_custom_movie():
+    title = request.form['title']
+    overview = request.form['overview']
+    release_date = request.form['release_date']
+    keywords = request.form['keywords']
+
+    poster = request.files['poster']
+    if poster:
+        filename = secure_filename(poster.filename)
+        poster.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        poster_url = f"http://127.0.0.1:5000/static/uploads/{filename}"
+    else:
+        poster_url = None
+
+    new_movie = Movie(
+        title=title,
+        overview=overview,
+        release_date=release_date,
+        keywords=keywords,
+        poster_url=poster_url
+    )
+    db.session.add(new_movie)
+    db.session.commit()
+
+    return jsonify({"message": f"Movie '{title}' added successfully!"}), 201
+
+# Route to delete a movie by ID
+@app.route('/movies/<int:movie_id>', methods=['DELETE'])
+def delete_movie(movie_id):
+    movie = Movie.query.get(movie_id)
+    if movie:
+        db.session.delete(movie)
+        db.session.commit()
+        return jsonify({"message": f"Movie '{movie.title}' deleted successfully!"}), 200
+    else:
+        return jsonify({"error": "Movie not found"}), 404
+
+# Route to edit a movie by ID
+@app.route('/movies/<int:movie_id>', methods=['PUT'])
+def edit_movie(movie_id):
+    movie = Movie.query.get(movie_id)
+    if not movie:
+        return jsonify({"error": "Movie not found"}), 404
+
+    data = request.get_json()
+
+    movie.title = data.get('title', movie.title)
+    movie.overview = data.get('overview', movie.overview)
+    movie.release_date = data.get('release_date', movie.release_date)
+    movie.keywords = data.get('keywords', movie.keywords)
+
+    db.session.commit()
+
+    return jsonify({"message": f"Movie '{movie.title}' updated successfully!"}), 200
+
+
 # Function to fetch keywords for a movie
 def fetch_keywords(movie_id):
     keywords_url = f'{TMDB_API_URL}{movie_id}/keywords?api_key={TMDB_API_KEY}'
-    keywords_response = request.get(keywords_url)
+    keywords_response = requests.get(keywords_url)
     if keywords_response.status_code == 200:
         keywords_data = keywords_response.json()['keywords']
         return ', '.join([keyword['name'] for keyword in keywords_data])
@@ -46,18 +114,20 @@ def fetch_keywords(movie_id):
 # Route to fetch popular movies and insert them into SQLite
 @app.route('/add_movies', methods=['GET'])
 def add_movies():
-    page = 1
-    total_pages = 10  # You can adjust this to fetch more pages if needed
+    page = 1  # This can be adjusted to keep fetching new pages
+    total_pages = 10  # Fetch more pages if necessary
     added_movies = 0
+    base_poster_url = 'https://image.tmdb.org/t/p/w500/'
 
     while page <= total_pages:
         popular_movies_url = f'{TMDB_API_URL}popular?api_key={TMDB_API_KEY}&page={page}'
-        response = request.get(popular_movies_url)
+        response = requests.get(popular_movies_url)
 
         if response.status_code == 200:
             movies_data = response.json()['results']
             for movie in movies_data:
                 keywords = fetch_keywords(movie['id'])
+                poster_url = base_poster_url + movie['poster_path'] if movie['poster_path'] else None
 
                 # Check if movie is already in the database
                 existing_movie = Movie.query.filter_by(title=movie['title']).first()
@@ -66,7 +136,8 @@ def add_movies():
                         title=movie['title'],
                         overview=movie['overview'],
                         release_date=movie['release_date'],
-                        keywords=keywords
+                        keywords=keywords,
+                        poster_url=poster_url
                     )
                     db.session.add(new_movie)
                     added_movies += 1
@@ -82,7 +153,7 @@ def add_movies():
 @app.route('/movies', methods=['GET'])
 def get_movies():
     movies = Movie.query.all()
-    movies_list = [{"id": movie.id,"title": movie.title, "overview": movie.overview, "release_date": movie.release_date, "keywords": movie.keywords} for movie in movies]
+    movies_list = [{"id": movie.id, "title": movie.title, "overview": movie.overview, "release_date": movie.release_date, "keywords": movie.keywords, "poster_url": movie.poster_url} for movie in movies]
     return jsonify(movies_list)
 
 # Route to add a movie to the watchlist
@@ -132,9 +203,11 @@ def get_watchlist():
                 "title": movie.title,
                 "overview": movie.overview,
                 "release_date": movie.release_date,
-                "keywords": movie.keywords
+                "keywords": movie.keywords,
+                "poster_url": movie.poster_url  # Include poster URL
             })
     return jsonify(watchlist_movies)
+
 
 @app.route('/check_movie_ids', methods=['GET'])
 def check_movie_ids():
