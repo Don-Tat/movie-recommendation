@@ -5,7 +5,7 @@ import MovieList from "./components/MovieList";
 import Watchlist from "./components/Watchlist";
 import Recommendations from "./components/Recommendations"; // Import Recommendations component
 import Navbar from "./components/Navbar";
-import "bootstrap/dist/css/bootstrap.min.css";
+import "bootswatch/dist/lux/bootstrap.min.css";
 import "./App.css";
 
 const App = () => {

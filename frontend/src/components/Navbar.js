@@ -1,6 +1,6 @@
 // Navbar.js
 import React, { useState } from "react";
-import "bootstrap/dist/css/bootstrap.min.css";
+import "bootswatch/dist/lux/bootstrap.min.css";
 
 const Navbar = ({ setCurrentPage, setSearchTerm }) => {
   const [search, setSearch] = useState("");

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import "bootswatch/dist/lux/bootstrap.min.css";
 
 const Home = () => {
   const [loading, setLoading] = useState(false);
